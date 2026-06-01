@@ -1,4 +1,5 @@
 import time
+import threading
 import vk_api
 from vk_api.longpoll import VkLongPoll, VkEventType
 
@@ -9,57 +10,51 @@ from config import VK_TOKEN, ADMIN_CHAT_ID
 
 print("Bot starting...")
 
-# VK init
 vk_session = vk_api.VkApi(token=VK_TOKEN)
+longpoll = VkLongPoll(vk_session)
 
-try:
-    longpoll = VkLongPoll(vk_session)
-    print("LongPoll connected")
-except Exception as e:
-    print("LongPoll ERROR:", repr(e))
-    while True:
-        time.sleep(60)
-
+print("LongPoll connected")
 print("Bot started...")
 
-# защита от падений (главное исправление)
+# 💓 HEARTBEAT (ОЧЕНЬ ВАЖНО ДЛЯ RAILWAY)
+def heartbeat():
+    while True:
+        print("heartbeat", flush=True)
+        time.sleep(10)
+
+threading.Thread(target=heartbeat, daemon=True).start()
+
 while True:
     try:
-        print("WAITING FOR EVENTS...")
+        print("WAITING FOR EVENTS...", flush=True)
 
         for event in longpoll.listen():
 
-            try:
-                if event.type != VkEventType.MESSAGE_NEW:
-                    continue
+            if event.type != VkEventType.MESSAGE_NEW:
+                continue
 
-                msg = event.text or ""
-                peer_id = event.peer_id
-                user_id = event.user_id
-                message_id = event.message_id
+            msg = event.text or ""
+            peer_id = event.peer_id
+            user_id = event.user_id
+            message_id = event.message_id
 
-                bad_words = get_bad_words()
+            bad_words = get_bad_words()
 
-                # автоудаление
-                if contains_bad_word(msg, bad_words):
-                    delete_message(message_id)
-                    send_message(peer_id, "⚠ сообщение удалено")
-                    continue
+            if contains_bad_word(msg, bad_words):
+                delete_message(message_id)
+                send_message(peer_id, "⚠ сообщение удалено")
+                continue
 
-                # репорт
-                if msg.startswith("/report"):
-                    reason = msg.replace("/report", "").strip()
+            if msg.startswith("/report"):
+                reason = msg.replace("/report", "").strip()
 
-                    add_report(peer_id, user_id, msg, reason)
+                add_report(peer_id, user_id, msg, reason)
 
-                    send_message(
-                        ADMIN_CHAT_ID,
-                        f"🚨 Репорт\nЧат: {peer_id}\nОт: {user_id}\nПричина: {reason}\nСообщение: {msg}"
-                    )
-
-            except Exception as e:
-                print("EVENT ERROR:", repr(e))
+                send_message(
+                    ADMIN_CHAT_ID,
+                    f"🚨 Репорт\nЧат: {peer_id}\nОт: {user_id}\nПричина: {reason}\nСообщение: {msg}"
+                )
 
     except Exception as e:
-        print("LOOP CRASH:", repr(e))
-        time.sleep(5)
+        print("LOOP ERROR:", repr(e), flush=True)
+        time.sleep(3)
