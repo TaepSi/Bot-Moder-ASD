@@ -1,5 +1,4 @@
 import time
-import threading
 import vk_api
 from vk_api.longpoll import VkLongPoll, VkEventType
 
@@ -15,14 +14,6 @@ longpoll = VkLongPoll(vk_session)
 
 print("LongPoll connected")
 print("Bot started...")
-
-# 💓 HEARTBEAT (ОЧЕНЬ ВАЖНО ДЛЯ RAILWAY)
-def heartbeat():
-    while True:
-        print("heartbeat", flush=True)
-        time.sleep(10)
-
-threading.Thread(target=heartbeat, daemon=True).start()
 
 while True:
     try:
@@ -56,5 +47,5 @@ while True:
                 )
 
     except Exception as e:
-        print("LOOP ERROR:", repr(e), flush=True)
+        print("ERROR:", repr(e), flush=True)
         time.sleep(3)
