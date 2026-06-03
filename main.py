@@ -6,7 +6,6 @@ import random
 from flask import Flask
 from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
 
-from vk import send_message, delete_message
 from db import get_bad_words, add_report
 from filters import contains_bad_word
 
@@ -21,7 +20,7 @@ ADMIN_CHAT_ID = int(os.environ["ADMIN_CHAT_ID"])
 
 
 # =========================
-# FLASK
+# FLASK (Railway)
 # =========================
 
 app = Flask(__name__)
@@ -31,23 +30,32 @@ def home():
     return "OK", 200
 
 
-def run():
+def run_http():
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port)
 
-threading.Thread(target=run, daemon=True).start()
+threading.Thread(target=run_http, daemon=True).start()
 
 
 # =========================
 # VK BOT
 # =========================
 
-print("BOT STARTED")
+print("BOT STARTED", flush=True)
 
 vk_session = vk_api.VkApi(token=VK_TOKEN)
 vk = vk_session.get_api()
 
 longpoll = VkBotLongPoll(vk_session, GROUP_ID)
+
+
+def send(peer_id, text):
+    vk.messages.send(
+        peer_id=peer_id,
+        message=text,
+        random_id=random.randint(1, 2**31)
+    )
+
 
 while True:
     for event in longpoll.listen():
@@ -60,7 +68,7 @@ while True:
         user_id = event.object.message["from_id"]
         message_id = event.object.message["id"]
 
-        print("MSG:", msg)
+        print("MSG:", msg, flush=True)
 
         # =========================
         # BAD WORDS
@@ -69,28 +77,37 @@ while True:
             bad_words = get_bad_words()
 
             if contains_bad_word(msg, bad_words):
-                delete_message(message_id)
-                send_message(peer_id, "⚠ удалено")
+                vk.messages.delete(
+                    message_ids=message_id,
+                    delete_for_all=1
+                )
+                send(peer_id, "⚠ сообщение удалено")
                 continue
-        except:
-            pass
+        except Exception as e:
+            print("BAD WORD ERROR:", repr(e), flush=True)
 
         # =========================
         # REPORT
         # =========================
         if msg.lower().startswith("/report"):
 
-            reason = msg.replace("/report", "").strip()
+            reason = msg[len("/report"):].strip()
 
             add_report(peer_id, user_id, msg, reason)
 
-            # 🔥 ВАЖНО: тест без падений
             try:
-                send_message(
+                # 🔥 ПРОСТАЯ ОТПРАВКА (БЕЗ ХИТРОСТЕЙ)
+                send(
                     ADMIN_CHAT_ID,
-                    f"РЕПОРТ\n{peer_id}\n{user_id}\n{reason}\n{msg}"
+                    f"🚨 РЕПОРТ\n"
+                    f"Чат: {peer_id}\n"
+                    f"От: {user_id}\n"
+                    f"Причина: {reason}\n"
+                    f"Сообщение: {msg}"
                 )
-                send_message(peer_id, "репорт отправлен")
+
+                send(peer_id, "✅ репорт отправлен")
+
             except Exception as e:
-                print("ADMIN ERROR:", repr(e))
-                send_message(peer_id, "репорт сохранён, но не отправился админу")
+                print("ADMIN ERROR:", repr(e), flush=True)
+                send(peer_id, "❌ репорт сохранён, но админу не ушёл")
