@@ -12,7 +12,7 @@ from config import VK_TOKEN, ADMIN_CHAT_ID
 
 
 # =========================
-# 🌐 HTTP SERVER (Railway fix)
+# 🌐 HTTP SERVER (Railway)
 # =========================
 
 app = Flask(__name__)
@@ -38,13 +38,13 @@ threading.Thread(target=run_http, daemon=True).start()
 # 🤖 VK BOT
 # =========================
 
-print("Bot starting...")
+print("Bot starting...", flush=True)
 
 vk_session = vk_api.VkApi(token=VK_TOKEN)
 longpoll = VkLongPoll(vk_session)
 
-print("LongPoll connected")
-print("Bot started...")
+print("LongPoll connected", flush=True)
+print("Bot started", flush=True)
 
 
 while True:
@@ -57,29 +57,41 @@ while True:
                 if event.type != VkEventType.MESSAGE_NEW:
                     continue
 
-                msg = event.text or ""
+                msg = (event.text or "").strip()
                 peer_id = event.peer_id
                 user_id = event.user_id
                 message_id = event.message_id
 
+                print(f"MESSAGE: '{msg}' | peer_id={peer_id} | user_id={user_id}", flush=True)
+
+                # =========================
+                # 🚫 BAD WORD FILTER
+                # =========================
                 bad_words = get_bad_words()
 
-                # 🚫 автоудаление
                 if contains_bad_word(msg, bad_words):
                     delete_message(message_id)
                     send_message(peer_id, "⚠ сообщение удалено")
                     continue
 
-                # 🚨 репорты
-                if msg.startswith("/report"):
-                    reason = msg.replace("/report", "").strip()
+                # =========================
+                # 🚨 REPORT
+                # =========================
+                if msg.lower().startswith("/report"):
+                    reason = msg[7:].strip()  # убираем "/report"
 
                     add_report(peer_id, user_id, msg, reason)
 
                     send_message(
                         ADMIN_CHAT_ID,
-                        f"🚨 Репорт\nЧат: {peer_id}\nОт: {user_id}\nПричина: {reason}\nСообщение: {msg}"
+                        f"🚨 Репорт\n"
+                        f"Чат: {peer_id}\n"
+                        f"От: {user_id}\n"
+                        f"Причина: {reason}\n"
+                        f"Сообщение: {msg}"
                     )
+
+                    send_message(peer_id, "✅ репорт отправлен")
 
             except Exception as e:
                 print("EVENT ERROR:", repr(e), flush=True)
