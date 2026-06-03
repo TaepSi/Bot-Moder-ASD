@@ -12,7 +12,7 @@ from config import VK_TOKEN, ADMIN_CHAT_ID
 
 
 # =========================
-# 🌐 FLASK (Railway ping fix)
+# 🌐 FLASK
 # =========================
 
 app = Flask(__name__)
@@ -40,16 +40,16 @@ threading.Thread(target=run_http, daemon=True).start()
 
 print("Bot starting...", flush=True)
 
-vk_session = vk_api.VkApi(token=VK_TOKEN)
-
-# ВАЖНО: ID группы обязателен
 GROUP_ID = int(os.environ["GROUP_ID"])
+
+# ❗ ВАЖНО: именно так создаётся сессия для bot_longpoll
+vk_session = vk_api.VkApi(token=VK_TOKEN)
+vk = vk_session.get_api()
 
 longpoll = VkBotLongPoll(vk_session, GROUP_ID)
 
-print("LongPoll connected", flush=True)
-print("Bot started", flush=True)
-
+print("LongPoll connected")
+print("Bot started")
 
 while True:
     try:
@@ -66,11 +66,11 @@ while True:
                 user_id = event.object.message["from_id"]
                 message_id = event.object.message["id"]
 
-                print(f"MESSAGE: '{msg}' | peer_id={peer_id} | user_id={user_id}", flush=True)
+                print(f"MESSAGE: {msg}", flush=True)
 
-                # =========================
-                # 🚫 BAD WORD FILTER
-                # =========================
+                # -------------------------
+                # BAD WORDS
+                # -------------------------
                 bad_words = get_bad_words()
 
                 if contains_bad_word(msg, bad_words):
@@ -78,9 +78,9 @@ while True:
                     send_message(peer_id, "⚠ сообщение удалено")
                     continue
 
-                # =========================
-                # 🚨 REPORT
-                # =========================
+                # -------------------------
+                # REPORT
+                # -------------------------
                 if msg.lower().startswith("/report"):
                     reason = msg[len("/report"):].strip()
 
