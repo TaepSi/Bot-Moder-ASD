@@ -12,7 +12,7 @@ from config import VK_TOKEN, ADMIN_CHAT_ID
 
 
 # =========================
-# 🌐 FLASK
+# 🌐 FLASK (Railway keep-alive)
 # =========================
 
 app = Flask(__name__)
@@ -42,14 +42,14 @@ print("Bot starting...", flush=True)
 
 GROUP_ID = int(os.environ["GROUP_ID"])
 
-# ❗ ВАЖНО: именно так создаётся сессия для bot_longpoll
 vk_session = vk_api.VkApi(token=VK_TOKEN)
 vk = vk_session.get_api()
 
 longpoll = VkBotLongPoll(vk_session, GROUP_ID)
 
-print("LongPoll connected")
-print("Bot started")
+print("LongPoll connected", flush=True)
+print("Bot started", flush=True)
+
 
 while True:
     try:
@@ -68,9 +68,9 @@ while True:
 
                 print(f"MESSAGE: {msg}", flush=True)
 
-                # -------------------------
-                # BAD WORDS
-                # -------------------------
+                # =========================
+                # 🚫 BAD WORD FILTER
+                # =========================
                 bad_words = get_bad_words()
 
                 if contains_bad_word(msg, bad_words):
@@ -78,22 +78,26 @@ while True:
                     send_message(peer_id, "⚠ сообщение удалено")
                     continue
 
-                # -------------------------
-                # REPORT
-                # -------------------------
+                # =========================
+                # 🚨 REPORT
+                # =========================
                 if msg.lower().startswith("/report"):
                     reason = msg[len("/report"):].strip()
 
                     add_report(peer_id, user_id, msg, reason)
 
-                    send_message(
-                        ADMIN_CHAT_ID,
-                        f"🚨 Репорт\n"
-                        f"Чат: {peer_id}\n"
-                        f"От: {user_id}\n"
-                        f"Причина: {reason}\n"
-                        f"Сообщение: {msg}"
-                    )
+                    # 🔥 защита от падения VK API
+                    try:
+                        send_message(
+                            ADMIN_CHAT_ID,
+                            f"🚨 Репорт\n"
+                            f"Чат: {peer_id}\n"
+                            f"От: {user_id}\n"
+                            f"Причина: {reason}\n"
+                            f"Сообщение: {msg}"
+                        )
+                    except Exception as e:
+                        print("ADMIN MESSAGE ERROR:", repr(e), flush=True)
 
                     send_message(peer_id, "✅ репорт отправлен")
 
