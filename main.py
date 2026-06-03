@@ -3,7 +3,7 @@ import time
 import threading
 import vk_api
 from flask import Flask
-from vk_api.longpoll import VkLongPoll, VkEventType
+from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
 
 from vk import send_message, delete_message
 from db import get_bad_words, add_report
@@ -12,7 +12,7 @@ from config import VK_TOKEN, ADMIN_CHAT_ID
 
 
 # =========================
-# 🌐 HTTP SERVER (Railway)
+# 🌐 FLASK (Railway ping fix)
 # =========================
 
 app = Flask(__name__)
@@ -41,7 +41,11 @@ threading.Thread(target=run_http, daemon=True).start()
 print("Bot starting...", flush=True)
 
 vk_session = vk_api.VkApi(token=VK_TOKEN)
-longpoll = VkLongPoll(vk_session)
+
+# ВАЖНО: ID группы обязателен
+GROUP_ID = int(os.environ["GROUP_ID"])
+
+longpoll = VkBotLongPoll(vk_session, GROUP_ID)
 
 print("LongPoll connected", flush=True)
 print("Bot started", flush=True)
@@ -54,13 +58,13 @@ while True:
         for event in longpoll.listen():
 
             try:
-                if event.type != VkEventType.MESSAGE_NEW:
+                if event.type != VkBotEventType.MESSAGE_NEW:
                     continue
 
-                msg = (event.text or "").strip()
-                peer_id = event.peer_id
-                user_id = event.user_id
-                message_id = event.message_id
+                msg = (event.object.message.get("text") or "").strip()
+                peer_id = event.object.message["peer_id"]
+                user_id = event.object.message["from_id"]
+                message_id = event.object.message["id"]
 
                 print(f"MESSAGE: '{msg}' | peer_id={peer_id} | user_id={user_id}", flush=True)
 
@@ -78,7 +82,7 @@ while True:
                 # 🚨 REPORT
                 # =========================
                 if msg.lower().startswith("/report"):
-                    reason = msg[7:].strip()  # убираем "/report"
+                    reason = msg[len("/report"):].strip()
 
                     add_report(peer_id, user_id, msg, reason)
 
