@@ -2,6 +2,7 @@ import os
 import time
 import threading
 import vk_api
+import random
 from flask import Flask
 from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
 
@@ -12,7 +13,7 @@ from config import VK_TOKEN, ADMIN_CHAT_ID
 
 
 # =========================
-# 🌐 FLASK (Railway keep-alive)
+# 🌐 FLASK (Railway keep alive)
 # =========================
 
 app = Flask(__name__)
@@ -86,7 +87,7 @@ while True:
 
                     add_report(peer_id, user_id, msg, reason)
 
-                    # 🔥 защита от падения VK API
+                    # 🔥 защита от VK API ошибок
                     try:
                         send_message(
                             ADMIN_CHAT_ID,
@@ -97,7 +98,7 @@ while True:
                             f"Сообщение: {msg}"
                         )
                     except Exception as e:
-                        print("ADMIN MESSAGE ERROR:", repr(e), flush=True)
+                        print("ADMIN SEND ERROR:", repr(e), flush=True)
 
                     send_message(peer_id, "✅ репорт отправлен")
 
